@@ -29,11 +29,11 @@ const DDG_EMPTY_SELECTORS: &[&str] = &[
     "div[data-result='no-results']",
 ];
 
-// DuckDuckGo no-results markers
+// DuckDuckGo no-results markers - made more specific to avoid false positives
 const DDG_EMPTY_MARKERS: &[&str] = &[
-    "no results",
-    "couldn't find",
-    "nothing found",
+    "no results for",
+    "no results were found",
+    "couldn't find any",
 ];
 
 pub struct DuckDuckGoEngine;
@@ -53,13 +53,17 @@ impl DuckDuckGoEngine {
     }
 
     fn parse(html: &str, limit: usize) -> Result<Vec<SearchResult>, SearchError> {
+        tracing::debug!("DuckDuckGo parse: HTML length = {}", html.len());
+        
         // Check for captcha first using both selectors and text markers
         if detect_captcha(html, DDG_CAPTCHA_SELECTORS, DDG_CAPTCHA_MARKERS) {
+            tracing::debug!("DuckDuckGo: Captcha detected");
             return Err(SearchError::CaptchaDetected);
         }
 
         // Check for empty results
         if detect_empty_results(html, DDG_EMPTY_SELECTORS, DDG_EMPTY_MARKERS) {
+            tracing::debug!("DuckDuckGo: Empty results detected");
             return Err(SearchError::EmptyResults);
         }
 
@@ -77,16 +81,17 @@ impl DuckDuckGoEngine {
         ];
 
         let mut rank = 1u32;
-        let mut _found_any = false;
 
         for selector_str in selectors {
+            tracing::debug!("DuckDuckGo: Trying selector: {}", selector_str);
             if let Ok(result_selector) = Selector::parse(selector_str) {
+                let count = document.select(&result_selector).count();
+                tracing::debug!("DuckDuckGo: Selector {} matched {} elements", selector_str, count);
+                
                 for element in document.select(&result_selector) {
                     if results.len() >= limit {
                         break;
                     }
-
-                    _found_any = true;
 
                     // Extract URL from various possible selectors
                     let url = match extract_attr(&element, &["a[data-testid='result-title-a']", "h2 a", "a[href]"], "href") {
@@ -139,7 +144,10 @@ impl DuckDuckGoEngine {
             }
         }
 
+        tracing::debug!("DuckDuckGo: Found {} results", results.len());
+        
         if results.is_empty() {
+            tracing::debug!("DuckDuckGo: No results matched any selectors");
             return Err(SearchError::EmptyResults);
         }
 

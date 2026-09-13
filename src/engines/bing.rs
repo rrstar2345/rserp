@@ -28,11 +28,11 @@ const BING_EMPTY_SELECTORS: &[&str] = &[
     "span[class*='no-results']",
 ];
 
-// Bing no-results markers
+// Bing no-results markers - more specific to avoid false positives
 const BING_EMPTY_MARKERS: &[&str] = &[
     "no results for",
-    "couldn't find",
-    "no webpages found",
+    "no webpages found for",
+    "no results were found",
 ];
 
 pub struct BingEngine;
@@ -52,13 +52,17 @@ impl BingEngine {
     }
 
     fn parse(html: &str, limit: usize) -> Result<Vec<SearchResult>, SearchError> {
+        tracing::debug!("Bing parse: HTML length = {}", html.len());
+        
         // Check for captcha using both selectors and text markers
         if detect_captcha(html, BING_CAPTCHA_SELECTORS, BING_CAPTCHA_MARKERS) {
+            tracing::debug!("Bing: Captcha detected");
             return Err(SearchError::CaptchaDetected);
         }
 
         // Check for empty results
         if detect_empty_results(html, BING_EMPTY_SELECTORS, BING_EMPTY_MARKERS) {
+            tracing::debug!("Bing: Empty results detected");
             return Err(SearchError::EmptyResults);
         }
 
@@ -75,7 +79,11 @@ impl BingEngine {
         let mut rank = 1u32;
 
         for selector_str in selectors {
+            tracing::debug!("Bing: Trying selector: {}", selector_str);
             if let Ok(result_selector) = Selector::parse(selector_str) {
+                let count = document.select(&result_selector).count();
+                tracing::debug!("Bing: Selector {} matched {} elements", selector_str, count);
+                
                 for element in document.select(&result_selector) {
                     if results.len() >= limit {
                         break;

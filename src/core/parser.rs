@@ -20,16 +20,37 @@ pub fn detect_captcha(html: &str, captcha_selectors: &[&str], captcha_markers: &
 
 /// Detects if HTML indicates no results using selectors and text markers
 pub fn detect_empty_results(html: &str, empty_selectors: &[&str], empty_markers: &[&str]) -> bool {
-    // First check selectors
+    // First check selectors (more reliable than text markers)
     if has_selector_match(html, empty_selectors) {
+        tracing::debug!("Empty results detected via selector match");
         return true;
     }
 
-    // Then check text markers (case-insensitive)
-    let html_lower = html.to_lowercase();
-    for marker in empty_markers {
-        if html_lower.contains(&marker.to_lowercase()) {
-            return true;
+    // Only check text markers within content areas to avoid false positives
+    // from navigation, headers, or other UI elements
+    let document = Html::parse_document(html);
+    
+    // Look for text markers only in main content areas
+    let content_selectors = &[
+        "main",
+        "article",
+        "div[role='main']",
+        ".content",
+        ".search-results",
+        "#content",
+    ];
+    
+    for content_selector_str in content_selectors {
+        if let Ok(content_selector) = Selector::parse(content_selector_str) {
+            if let Some(content) = document.select(&content_selector).next() {
+                let content_text = content.inner_html().to_lowercase();
+                for marker in empty_markers {
+                    if content_text.contains(&marker.to_lowercase()) {
+                        tracing::debug!("Empty results detected via marker: {}", marker);
+                        return true;
+                    }
+                }
+            }
         }
     }
 
