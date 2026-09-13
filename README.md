@@ -129,20 +129,20 @@ GET /health
 
 ```
 rserp/
-β"œβ"€β"€ src/
-β"‚   β"œβ"€β"€ main.rs              # CLI entry point
-β"‚   β"œβ"€β"€ server.rs            # Axum HTTP server
-β"‚   β"œβ"€β"€ models.rs            # Request/response types
-β"‚   β"œβ"€β"€ engines/
-β"‚   β"‚   β"œβ"€β"€ mod.rs            # Engine router
-β"‚   β"‚   β"œβ"€β"€ duckduckgo.rs     # DuckDuckGo implementation
-β"‚   β"‚   └── bing.rs            # Bing implementation
-β"‚   └── core/
-β"‚       β"œβ"€β"€ mod.rs            # Core exports
-β"‚       β"œβ"€β"€ http.rs           # HTTP client
-β"‚       β"œβ"€β"€ parser.rs         # HTML parsing utilities
-β"‚       └── errors.rs          # Error types
-β"œβ"€β"€ Cargo.toml
+└──  src/
+      └──  main.rs              # CLI entry point
+      └──  server.rs            # Axum HTTP server
+      └──  models.rs            # Request/response types
+      └──  engines/
+            └──  mod.rs         # Engine router
+            └──  duckduckgo.rs  # DuckDuckGo implementation
+            └──  bing.rs        # Bing implementation
+      └── core/
+          └──  mod.rs           # Core exports
+          └──  http.rs          # HTTP client
+          └──  parser.rs        # HTML parsing utilities
+          └──  errors.rs        # Error types
+└──  Cargo.toml
 └── README.md
 ```
 
