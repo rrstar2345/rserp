@@ -33,6 +33,7 @@ impl HttpClient {
     }
 
     pub async fn fetch(&self, url: &str) -> Result<String, SearchError> {
+        tracing::debug!("HTTP fetch: {}", url);
         self.fetch_with_headers(url, &[]).await
     }
 
@@ -68,13 +69,16 @@ impl HttpClient {
             .map_err(|e| SearchError::RequestFailed(e.to_string()))?;
 
         let status = response.status();
+        tracing::debug!("HTTP response status: {} for URL: {}", status, url);
 
         // Detect captcha/rate limiting
         if status.as_u16() == 429 || status.as_u16() == 403 {
+            tracing::debug!("Rate limiting/captcha detected: HTTP {}", status);
             return Err(SearchError::CaptchaDetected);
         }
 
         if !status.is_success() {
+            tracing::debug!("HTTP error response: {}", status);
             return Err(SearchError::ServerError(format!(
                 "HTTP {} - {}",
                 status,
@@ -82,10 +86,13 @@ impl HttpClient {
             )));
         }
 
-        response
+        let text = response
             .text()
             .await
-            .map_err(|e| SearchError::RequestFailed(e.to_string()))
+            .map_err(|e| SearchError::RequestFailed(e.to_string()))?;
+        
+        tracing::debug!("HTML response received: {} bytes", text.len());
+        Ok(text)
     }
 }
 

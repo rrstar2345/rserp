@@ -54,16 +54,19 @@ impl DuckDuckGoEngine {
 
     fn parse(html: &str, limit: usize) -> Result<Vec<SearchResult>, SearchError> {
         tracing::debug!("DuckDuckGo parse: HTML length = {}", html.len());
+        tracing::debug!("DuckDuckGo: HTML first 500 chars: {}", &html[..std::cmp::min(500, html.len())]);
         
         // Check for captcha first using both selectors and text markers
+        tracing::debug!("DuckDuckGo: Checking for captcha");
         if detect_captcha(html, DDG_CAPTCHA_SELECTORS, DDG_CAPTCHA_MARKERS) {
             tracing::debug!("DuckDuckGo: Captcha detected");
             return Err(SearchError::CaptchaDetected);
         }
 
         // Check for empty results
+        tracing::debug!("DuckDuckGo: Checking for empty results");
         if detect_empty_results(html, DDG_EMPTY_SELECTORS, DDG_EMPTY_MARKERS) {
-            tracing::debug!("DuckDuckGo: Empty results detected");
+            tracing::debug!("DuckDuckGo: Empty results detected via empty results check");
             return Err(SearchError::EmptyResults);
         }
 

@@ -46,6 +46,9 @@ pub async fn start_server(port: u16) -> Result<(), Box<dyn std::error::Error>> {
 async fn search_handler(
     AxumQuery(params): AxumQuery<SearchParams>,
 ) -> impl IntoResponse {
+    tracing::debug!("Search request received: query='{}', engines={:?}, limit={:?}", 
+        params.text, params.engines, params.limit);
+    
     let engines = params
         .engines
         .as_deref()
@@ -55,6 +58,7 @@ async fn search_handler(
         .collect::<Vec<_>>();
 
     let limit = params.limit.unwrap_or(10);
+    tracing::debug!("Parsed engines: {:?}, limit: {}", engines, limit);
 
     let query = Query {
         text: params.text,
@@ -70,18 +74,22 @@ async fn search_handler(
     let start = std::time::Instant::now();
 
     for engine_name in engines {
+        tracing::debug!("Executing search on engine: {}", engine_name);
         if let Some(engine) = Engine::from_string(&engine_name) {
             match engine.search(&query.text, limit).await {
                 Ok(results) => {
+                    tracing::debug!("Engine {} returned {} results", engine_name, results.len());
                     envelope.meta.engines_responded.push(engine_name.clone());
                     envelope.results.extend(results);
                 }
                 Err(e) => {
+                    tracing::debug!("Engine {} error: {}", engine_name, e);
                     envelope.meta.engines_failed.push(engine_name);
                     tracing::warn!("Engine failed: {}", e);
                 }
             }
         } else {
+            tracing::debug!("Unknown engine: {}", engine_name);
             envelope
                 .meta
                 .engines_failed
@@ -90,6 +98,8 @@ async fn search_handler(
     }
 
     envelope.finalize(start);
+    tracing::debug!("Final results count: {}, engines_responded: {:?}, engines_failed: {:?}",
+        envelope.results.len(), envelope.meta.engines_responded, envelope.meta.engines_failed);
 
     if envelope.results.is_empty() {
         (StatusCode::NOT_FOUND, Json(envelope))
@@ -101,6 +111,8 @@ async fn search_handler(
 async fn duckduckgo_search_handler(
     AxumQuery(params): AxumQuery<SearchParams>,
 ) -> impl IntoResponse {
+    tracing::debug!("DuckDuckGo search handler: query='{}', limit={:?}", params.text, params.limit);
+    
     let limit = params.limit.unwrap_or(10);
     let query = Query {
         text: params.text,
@@ -116,16 +128,20 @@ async fn duckduckgo_search_handler(
 
     match Engine::DuckDuckGo.search(&query.text, limit).await {
         Ok(results) => {
+            tracing::debug!("DuckDuckGo search succeeded: {} results", results.len());
             envelope.meta.engines_responded.push("duckduckgo".to_string());
             envelope.results = results;
         }
         Err(e) => {
+            tracing::debug!("DuckDuckGo search error: {}", e);
             envelope.meta.engines_failed.push("duckduckgo".to_string());
             tracing::warn!("DuckDuckGo search failed: {}", e);
         }
     }
 
     envelope.finalize(start);
+    tracing::debug!("DuckDuckGo response: results={}, status={:?}", 
+        envelope.results.len(), if envelope.results.is_empty() { "NOT_FOUND" } else { "OK" });
 
     if envelope.results.is_empty() {
         (StatusCode::NOT_FOUND, Json(envelope))
@@ -137,6 +153,8 @@ async fn duckduckgo_search_handler(
 async fn bing_search_handler(
     AxumQuery(params): AxumQuery<SearchParams>,
 ) -> impl IntoResponse {
+    tracing::debug!("Bing search handler: query='{}', limit={:?}", params.text, params.limit);
+    
     let limit = params.limit.unwrap_or(10);
     let query = Query {
         text: params.text,
@@ -152,16 +170,20 @@ async fn bing_search_handler(
 
     match Engine::Bing.search(&query.text, limit).await {
         Ok(results) => {
+            tracing::debug!("Bing search succeeded: {} results", results.len());
             envelope.meta.engines_responded.push("bing".to_string());
             envelope.results = results;
         }
         Err(e) => {
+            tracing::debug!("Bing search error: {}", e);
             envelope.meta.engines_failed.push("bing".to_string());
             tracing::warn!("Bing search failed: {}", e);
         }
     }
 
     envelope.finalize(start);
+    tracing::debug!("Bing response: results={}, status={:?}", 
+        envelope.results.len(), if envelope.results.is_empty() { "NOT_FOUND" } else { "OK" });
 
     if envelope.results.is_empty() {
         (StatusCode::NOT_FOUND, Json(envelope))
