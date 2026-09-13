@@ -104,6 +104,7 @@ pub struct SerpFeature {
 pub struct Envelope {
     pub query: QueryEcho,
     pub meta: ResponseMeta,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub results: Vec<Result>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub serp_features: Vec<SerpFeature>,

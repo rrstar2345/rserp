@@ -54,7 +54,6 @@ impl DuckDuckGoEngine {
 
     fn parse(html: &str, limit: usize) -> Result<Vec<SearchResult>, SearchError> {
         tracing::debug!("DuckDuckGo parse: HTML length = {}", html.len());
-        tracing::debug!("DuckDuckGo: HTML first 500 chars: {}", &html[..std::cmp::min(500, html.len())]);
         
         // Check for captcha first using both selectors and text markers
         tracing::debug!("DuckDuckGo: Checking for captcha");
@@ -71,16 +70,23 @@ impl DuckDuckGoEngine {
         }
 
         let document = Html::parse_document(html);
+        
+        // Debug: Inspect HTML structure (safe UTF-8 slicing)
+        let html_start = if html.len() > 1000 {
+            html.chars().take(500).collect::<String>()
+        } else {
+            html[..std::cmp::min(500, html.len())].to_string()
+        };
+        tracing::debug!("DuckDuckGo HTML first chars: {}", html_start);
+        
         let mut results = Vec::new();
 
-        // DuckDuckGo uses data-testid attribute for results
-        // Try multiple selector patterns to handle different DDG layouts
+        // DuckDuckGo uses different structure than expected
+        // Results are in: div.result.results_links.web-result
         let selectors = &[
-            "article[data-testid='result']",
-            "article[data-testid='ad']",
-            "div[data-testid='result']",
-            "div[data-testid='ad']",
-            "li[data-layout='organic']",
+            "div.result.web-result",
+            "div.results_links.web-result",
+            "div.result.results_links",
         ];
 
         let mut rank = 1u32;
@@ -96,8 +102,8 @@ impl DuckDuckGoEngine {
                         break;
                     }
 
-                    // Extract URL from various possible selectors
-                    let url = match extract_attr(&element, &["a[data-testid='result-title-a']", "h2 a", "a[href]"], "href") {
+                    // Extract URL from h2 > a
+                    let url = match extract_attr(&element, &["h2 a", "a.result__a"], "href") {
                         Some(url) => url,
                         None => continue,
                     };
@@ -107,18 +113,18 @@ impl DuckDuckGoEngine {
                         continue;
                     }
 
-                    // Extract title from various possible selectors
-                    let title = match extract_text_from_element(&element, &["h2", "span[data-testid*='result-title']", "a[data-testid='result-title-a']"]) {
+                    // Extract title from h2 > a
+                    let title = match extract_text_from_element(&element, &["h2 a", "a.result__a"]) {
                         Some(t) => t,
                         None => continue,
                     };
 
-                    // Extract snippet
-                    let snippet = extract_text_from_element(&element, &["div[data-result='snippet']", ".result__snippet", "p"])
+                    // Extract snippet from a.result__snippet
+                    let snippet = extract_text_from_element(&element, &["a.result__snippet", "div.result__snippet"])
                         .unwrap_or_default();
 
-                    // Extract display URL
-                    let display_url = extract_text_from_element(&element, &["p", "span"])
+                    // Extract display URL from a.result__url
+                    let display_url = extract_text_from_element(&element, &["a.result__url", "span"])
                         .unwrap_or_else(|| url.clone());
 
                     let domain = extract_domain(&url);

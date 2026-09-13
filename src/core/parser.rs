@@ -20,15 +20,11 @@ pub fn detect_captcha(html: &str, captcha_selectors: &[&str], captcha_markers: &
 
 /// Detects if HTML indicates no results using selectors and text markers
 pub fn detect_empty_results(html: &str, empty_selectors: &[&str], empty_markers: &[&str]) -> bool {
-    tracing::debug!("detect_empty_results: Checking {} selectors and {} markers", empty_selectors.len(), empty_markers.len());
-    
     // First check selectors (more reliable than text markers)
-    tracing::debug!("detect_empty_results: Checking selectors");
     if has_selector_match(html, empty_selectors) {
         tracing::debug!("Empty results detected via selector match");
         return true;
     }
-    tracing::debug!("detect_empty_results: No selector match found");
 
     // Only check text markers within content areas to avoid false positives
     // from navigation, headers, or other UI elements
@@ -44,12 +40,10 @@ pub fn detect_empty_results(html: &str, empty_selectors: &[&str], empty_markers:
         "#content",
     ];
     
-    tracing::debug!("detect_empty_results: Checking text markers in content areas");
     for content_selector_str in content_selectors {
         if let Ok(content_selector) = Selector::parse(content_selector_str) {
             if let Some(content) = document.select(&content_selector).next() {
                 let content_text = content.inner_html().to_lowercase();
-                tracing::debug!("detect_empty_results: Found content area: {}", content_selector_str);
                 for marker in empty_markers {
                     if content_text.contains(&marker.to_lowercase()) {
                         tracing::debug!("Empty results detected via marker: {}", marker);
@@ -60,7 +54,6 @@ pub fn detect_empty_results(html: &str, empty_selectors: &[&str], empty_markers:
         }
     }
 
-    tracing::debug!("detect_empty_results: No empty results markers detected");
     false
 }
 

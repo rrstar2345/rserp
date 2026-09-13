@@ -4,12 +4,16 @@ mod models;
 mod server;
 
 use clap::{Parser, Subcommand};
-use tracing_subscriber;
+use tracing_subscriber::{filter::EnvFilter, prelude::*};
 
 #[derive(Parser)]
 #[command(name = "rserp")]
 #[command(about = "Open-source SERP API in Rust", long_about = None)]
 struct Cli {
+    /// Log level: error, warn, info, debug, trace
+    #[arg(global = true, short, long, default_value = "error")]
+    log_level: String,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -45,9 +49,20 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt::init();
-
     let cli = Cli::parse();
+    
+    // Build filter with rserp=<log_level>
+    let filter_str = format!("rserp={}", cli.log_level);
+    
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_target(true)
+        )
+        .with(
+            EnvFilter::new(&filter_str)
+        )
+        .init();
 
     match cli.command {
         Commands::Server { port } => {

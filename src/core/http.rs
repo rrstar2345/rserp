@@ -70,6 +70,14 @@ impl HttpClient {
 
         let status = response.status();
         tracing::debug!("HTTP response status: {} for URL: {}", status, url);
+        
+        // Log response headers
+        tracing::debug!("Response headers:");
+        for (name, value) in response.headers() {
+            if let Ok(val_str) = value.to_str() {
+                tracing::debug!("  {}: {}", name, val_str);
+            }
+        }
 
         // Detect captcha/rate limiting
         if status.as_u16() == 429 || status.as_u16() == 403 {
@@ -86,12 +94,20 @@ impl HttpClient {
             )));
         }
 
+        // reqwest automatically handles decompression (gzip, deflate, brotli)
         let text = response
             .text()
             .await
             .map_err(|e| SearchError::RequestFailed(e.to_string()))?;
         
-        tracing::debug!("HTML response received: {} bytes", text.len());
+        tracing::debug!("Successfully decoded response, length: {}", text.len());
+        
+        // Save to file for debugging (only first time or on error)
+        if text.len() < 20000 {
+            let _ = std::fs::write("/tmp/ddg_response.html", &text);
+            tracing::debug!("Saved response to /tmp/ddg_response.html");
+        }
+        
         Ok(text)
     }
 }

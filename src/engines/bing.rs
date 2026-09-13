@@ -53,7 +53,6 @@ impl BingEngine {
 
     fn parse(html: &str, limit: usize) -> Result<Vec<SearchResult>, SearchError> {
         tracing::debug!("Bing parse: HTML length = {}", html.len());
-        tracing::debug!("Bing: HTML first 500 chars: {}", &html[..std::cmp::min(500, html.len())]);
         
         // Check for captcha using both selectors and text markers
         tracing::debug!("Bing: Checking for captcha");

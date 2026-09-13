@@ -19,7 +19,7 @@ echo
 
 # Example 3: Multi-engine search
 echo "3. Multi-engine search (DuckDuckGo + Bing):"
-curl -s "${BASE_URL}/search?text=rust%20programming&engines=duckduckgo,bing&limit=5" | jq '.meta | {engines_responded, engines_failed, took_ms}'
+curl -s "${BASE_URL}/search?text=rust%20programming&engines=duckduckgo,bing&limit=5" | jq '{meta: .meta, results_count: (.results | length), results: .results[] | {title, url, snippet}}'
 echo
 
 # Example 4: Health check
